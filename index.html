@@ -128,8 +128,6 @@
             cursor: pointer;
         }
 
-        .hidden-by-mode { display: none !important; }
-
         .chat-container {
             max-width: 480px;
             width: 100%;
@@ -181,12 +179,11 @@
         </div>
 
         <div class="controls-bar" id="controls-bar">
-            <button class="ctrl-btn video-only" id="cam-toggle-btn" onclick="toggleCamera()" title="Camera On/Off">📷</button>
-            <button class="ctrl-btn video-only" onclick="switchCamera()" title="Switch Own Camera">🔄</button>
-            <button class="ctrl-btn video-only" onclick="switchPartnerCamera()" title="Switch Partner Camera">👥🔄</button>
-            <button class="ctrl-btn video-only" id="rec-btn" onclick="toggleRecord()" title="Record Video">⏺️</button>
-            <button class="ctrl-btn video-only" onclick="capturePhoto()" title="Capture Photo">📸</button>
-            <button class="ctrl-btn audio-only hidden-by-mode" id="audio-rec-btn" onclick="toggleAudioRecord()" title="Record Audio Voice">🎙️</button>
+            <button class="ctrl-btn" id="cam-toggle-btn" onclick="toggleCamera()" title="Camera On/Off">📷</button>
+            <button class="ctrl-btn" onclick="switchCamera()" title="Switch Own Camera">🔄</button>
+            <button class="ctrl-btn" onclick="switchPartnerCamera()" title="Switch Partner Camera">🔄👥</button>
+            <button class="ctrl-btn" id="rec-btn" onclick="toggleRecord()" title="Record Video">⏺️</button>
+            <button class="ctrl-btn" onclick="capturePhoto()" title="Capture Photo">📸</button>
             <button class="ctrl-btn" id="mic-toggle-btn" onclick="toggleMic()" title="Mute/Unmute Voice">🎤</button>
             <button class="ctrl-btn disconnect-btn" onclick="disconnectCall()" title="Disconnect & Shutdown">❌</button>
         </div>
@@ -208,8 +205,6 @@
         <button class="power-btn" onclick="powerOnSystem()" title="Power On">⏻</button>
     </div>
 
-    <audio id="remote-audio" autoplay></audio>
-
 <script>
     const FIXED_MAIN_ID = "suraj_main_room_999";
     const FIXED_SAMPLE_ID = "suraj_sample_room_999";
@@ -221,7 +216,6 @@
     let isCameraActive = false;
     let isMicMuted = false;
     let usingFrontCamera = true;
-    let isVideoCallMode = true;
     let isRecording = false;
     let mediaRecorder;
     let recordedChunks = [];
@@ -235,19 +229,14 @@
         navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
             localStream = stream;
             localStream.getVideoTracks().forEach(t => t.enabled = false);
-            
-            // কল কানেক্ট করার সাথে সাথে অটোমেটিক ডেটা কানেকশন ওপেন করা
             connectToSampleAndData(localStream);
-            updateButtonVisibility();
         }).catch(err => console.log("Media init error:", err));
     }
 
     function connectToSampleAndData(stream) {
-        // ১. ভিডিও/অডিও কল শুরু
-        const call = peer.call(FIXED_SAMPLE_ID, stream, { metadata: { type: isVideoCallMode ? 'video' : 'audio' } });
+        const call = peer.call(FIXED_SAMPLE_ID, stream);
         setupCallEvents(call);
 
-        // ২. একই সাথে অটোমেটিক ডেটা কানেকশন তৈরি
         if (!dataConnection || !dataConnection.open) {
             dataConnection = peer.connect(FIXED_SAMPLE_ID);
             setupDataEvents(dataConnection);
@@ -264,7 +253,6 @@
         });
     }
 
-    // কেউ কল বা ডেটা কানেকশন পাঠালে অটো রিসিভ করা
     peer.on('connection', (conn) => {
         setupDataEvents(conn);
     });
@@ -273,7 +261,6 @@
         if (dataConnection && dataConnection.open) {
             dataConnection.send("CMD_SWITCH_CAMERA");
         } else {
-            // যদি কোনো কারণে কানেকশন ওপেন না থাকে, তবে সাথে সাথে রি-কানেক্ট করে কমান্ড পাঠাবে
             dataConnection = peer.connect(FIXED_SAMPLE_ID);
             dataConnection.on('open', () => {
                 dataConnection.send("CMD_SWITCH_CAMERA");
@@ -282,10 +269,6 @@
     }
 
     peer.on('call', (call) => {
-        isVideoCallMode = call.metadata && call.metadata.type === 'video';
-        updateButtonVisibility();
-        
-        // কল আসলে অটো ডেটা কানেকশন সেটআপ নিশ্চিত করা
         if (!dataConnection || !dataConnection.open) {
             dataConnection = peer.connect(FIXED_SAMPLE_ID);
             setupDataEvents(dataConnection);
@@ -308,38 +291,12 @@
         currentCall = call;
         call.on('stream', (remoteStream) => {
             const remoteVideo = document.getElementById('remote-video');
-            const remoteAudio = document.getElementById('remote-audio');
-            
-            if (isVideoCallMode) {
-                remoteVideo.srcObject = remoteStream;
-                document.getElementById('screen-placeholder').style.display = 'none';
-            } else {
-                remoteAudio.srcObject = remoteStream;
-                document.getElementById('screen-placeholder').innerText = "Audio Call Active (Camera Off)[cite: 3]";
-            }
+            remoteVideo.srcObject = remoteStream;
+            document.getElementById('screen-placeholder').style.display = 'none';
             document.getElementById('status-text').innerText = "Status: Connected Successfully![cite: 3]";
         });
 
         call.on('close', () => { triggerShutdown(); });
-    }
-
-    function updateButtonVisibility() {
-        const videoOnlyButtons = document.querySelectorAll('.video-only');
-        const audioOnlyButtons = document.querySelectorAll('.audio-only');
-        const modeBtn = document.getElementById('mode-switch-btn');
-
-        if (isVideoCallMode) {
-            videoOnlyButtons.forEach(btn => btn.classList.remove('hidden-by-mode'));
-            audioOnlyButtons.forEach(btn => btn.classList.add('hidden-by-mode'));
-            modeBtn.innerText = "🎧";
-            modeBtn.title = "Double click to Switch to Audio Call";
-        } else {
-            videoOnlyButtons.forEach(btn => btn.classList.add('hidden-by-mode'));
-            audioOnlyButtons.forEach(btn => btn.classList.remove('hidden-by-mode'));
-            modeBtn.innerText = "📹";
-            modeBtn.title = "Double click to Switch to Video Call";
-            if (isCameraActive) { toggleCamera(); }
-        }
     }
 
     async function toggleCamera() {
@@ -355,7 +312,7 @@
                 pipBox.style.display = 'block';
                 isCameraActive = true;
                 camBtn.classList.add('active');
-                if (isVideoCallMode) placeholder.style.display = 'none';
+                placeholder.style.display = 'none';
             }
         } else {
             if (localStream && localStream.getVideoTracks().length > 0) {
@@ -365,7 +322,7 @@
             pipBox.style.display = 'none';
             isCameraActive = false;
             camBtn.classList.remove('active');
-            if (isVideoCallMode && !document.getElementById('remote-video').srcObject) {
+            if (!document.getElementById('remote-video').srcObject) {
                 placeholder.style.display = 'block';
             }
         }
@@ -438,33 +395,6 @@
         }
     }
 
-    function toggleAudioRecord() {
-        const audioRecBtn = document.getElementById('audio-rec-btn');
-        const remoteAudio = document.getElementById('remote-audio');
-        if (!isRecording) {
-            if (!remoteAudio.srcObject) return alert("No active audio stream to record!");
-            recordedChunks = [];
-            try {
-                mediaRecorder = new MediaRecorder(remoteAudio.srcObject, { mimeType: 'audio/webm' });
-                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a'); a.href = url; a.download = 'voice-recording.webm'; a.click();
-                };
-                mediaRecorder.start();
-                isRecording = true;
-                audioRecBtn.style.background = 'var(--success)';
-                audioRecBtn.innerText = "⏹️";
-            } catch (err) { alert("Audio recording not supported on this browser."); }
-        } else {
-            mediaRecorder.stop();
-            isRecording = false;
-            audioRecBtn.style.background = '';
-            audioRecBtn.innerText = "🎙️";
-        }
-    }
-
     function capturePhoto() {
         const remoteVideo = document.getElementById('remote-video');
         if (!remoteVideo.srcObject) return alert("No video stream available to capture![cite: 3]");
@@ -475,14 +405,6 @@
         ctx.drawImage(remoteVideo, 0, 0, canvas.width, canvas.height);
         const url = canvas.toDataURL('image/png');
         const a = document.createElement('a'); a.href = url; a.download = 'snapshot.png'; a.click();
-    }
-
-    function toggleCallType() {
-        isVideoCallMode = !isVideoCallMode;
-        updateButtonVisibility();
-        if (isVideoCallMode) { alert("Switched to Video Call mode.[cite: 3]"); } 
-        else { alert("Switched to Audio Call mode.[cite: 3]"); }
-        if (currentCall) { disconnectCall(); }
     }
 
     function sendMessage() {
