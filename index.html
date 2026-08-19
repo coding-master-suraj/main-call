@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main Connector - Complete Call App</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #07090e;
+            --card-bg: rgba(17, 24, 39, 0.85);
+            --accent: #6366f1;
+            --danger: #f43f5e;
+            --success: #10b981;
+            --text-main: #f3f4f6;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            margin: 5px 0 10px 0;
+            font-size: 1.2rem;
+            color: #818cf8;
+        }
+
+        /* Main Display Screen */
+        .display-container {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            aspect-ratio: 9/16;
+            max-height: 52vh;
+            background: #030712;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #remote-video {
+            width: 100%;
+            height: 100%;
+            background: #111;
+        }
+
+        /* Small Corner View for Own Camera */
+        .local-pip {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 90px;
+            height: 130px;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.3);
+            z-index: 10;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            display: none;
+        }
+
+        .local-pip video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .placeholder-text {
+            position: absolute;
+            color: #6b7280;
+            font-size: 0.9rem;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        /* Bottom Control Panel */
+        .controls-bar {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            max-width: 480px;
+            width: 100%;
+            margin-top: 12px;
+            background: var(--card-bg);
+            padding: 10px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            box-sizing: border-box;
+        }
+
+        .ctrl-btn {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid var(--border);
+            color: white;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .ctrl-btn:hover {
+            transform: scale(1.08);
+            background: rgba(51, 65, 85, 1);
+        }
+
+        .ctrl-btn.active {
+            background: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .ctrl-btn.disconnect-btn {
+            background: var(--danger);
+            width: 48px;
+            height: 48px;
+        }
+
+        .hidden-by-mode {
+            display: none !important;
+        }
+
+        /* Text Chat Box Style */
+        .chat-container {
+            max-width: 480px;
+            width: 100%;
+            margin-top: 10px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .chat-messages {
+            height: 60px;
+            overflow-y: auto;
+            background: #030712;
+            border-radius: 8px;
+            padding: 6px;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 6px;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            background: #030712;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: white;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .chat-input-area button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 0 12px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .status-badge {
+            font-size: 0.8rem;
+            color: #34d399;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Main Connector (Full Code)</h2>
+    <div class="status-badge" id="status-text">Status: Connecting to Server...</div>
+
+    <!-- Main Screen Display -->
+    <div class="display-container">
+        <div class="placeholder-text" id="screen-placeholder">Camera is Off / Waiting for Partner</div>
+        
+        <!-- Remote Partner Video -->
+        <video id="remote-video" autoplay playsinline></video>
+        
+        <!-- Small Corner Self View (PiP) -->
+        <div class="local-pip" id="local-pip-box">
+            <video id="local-video" autoplay muted playsinline></video>
+        </div>
+    </div>
+
+    <!-- Bottom Action Bar -->
+    <div class="controls-bar" id="controls-bar">
+        <!-- Video Specific Buttons -->
+        <button class="ctrl-btn video-only" id="cam-toggle-btn" onclick="toggleCamera()" title="Camera On/Off">📷</button>
+        <button class="ctrl-btn video-only" onclick="switchCamera()" title="Switch Camera">🔄</button>
+        <button class="ctrl-btn video-only" id="rec-btn" onclick="toggleRecord()" title="Record Video">⏺️</button>
+        <button class="ctrl-btn video-only" onclick="capturePhoto()" title="Capture Photo">📸</button>
+
+        <!-- Common Buttons (Mute, Mode Switch, Disconnect) -->
+        <button class="ctrl-btn" id="mic-toggle-btn" onclick="toggleMic()" title="Mute/Unmute Voice">🎤</button>
+        <button class="ctrl-btn" id="mode-switch-btn" onclick="toggleCallType()" title="Convert Call Type">📞</button>
+        <button class="ctrl-btn disconnect-btn" onclick="disconnectCall()" title="Disconnect">❌</button>
+    </div>
+
+    <!-- Text Chat Function under Display -->
+    <div class="chat-container">
+        <div class="chat-messages" id="chat-box">
+            <div style="color: #6b7280;">Live text chat available here...</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="msg-input" placeholder="Type a text message..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <audio id="remote-audio" autoplay></audio>
+
+<script>
+    const FIXED_MAIN_ID = "suraj_main_room_999";
+    const FIXED_SAMPLE_ID = "suraj_sample_room_999";
+
+    let peer = new Peer(FIXED_MAIN_ID);
+    let localStream = null;
+    let currentCall = null;
+    let dataConnection = null;
+    let isCameraActive = false;
+    let isMicMuted = false;
+    let usingFrontCamera = true;
+    let isVideoCallMode = true;
+    let isRecording = false;
+    let mediaRecorder;
+    let recordedChunks = [];
+
+    peer.on('open', () => {
+        document.getElementById('status-text').innerText = "Status: Ready & Waiting for Sample...";
+        setTimeout(autoConnect, 2000);
+    });
+
+    function autoConnect() {
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+            localStream = stream;
+            localStream.getVideoTracks().forEach(t => t.enabled = false);
+            connectToSample(localStream);
+            setupDataConnection(FIXED_SAMPLE_ID);
+            updateButtonVisibility();
+        }).catch(err => console.log("Media init error:", err));
+    }
+
+    function connectToSample(stream) {
+        const call = peer.call(FIXED_SAMPLE_ID, stream, { metadata: { type: isVideoCallMode ? 'video' : 'audio' } });
+        setupCallEvents(call);
+    }
+
+    function setupDataConnection(id) {
+        dataConnection = peer.connect(id);
+        setupDataEvents(dataConnection);
+    }
+
+    peer.on('connection', (conn) => {
+        dataConnection = conn;
+        setupDataEvents(dataConnection);
+    });
+
+    function setupDataEvents(conn) {
+        conn.on('data', (data) => {
+            appendChatMessage("Partner", data);
+        });
+    }
+
+    peer.on('call', (call) => {
+        isVideoCallMode = call.metadata && call.metadata.type === 'video';
+        updateButtonVisibility();
+        if (!localStream) {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+                localStream = stream;
+                localStream.getVideoTracks().forEach(t => t.enabled = false);
+                call.answer(localStream);
+                setupCallEvents(call);
+            });
+        } else {
+            call.answer(localStream);
+            setupCallEvents(call);
+        }
+    });
+
+    function setupCallEvents(call) {
+        currentCall = call;
+        call.on('stream', (remoteStream) => {
+            const remoteVideo = document.getElementById('remote-video');
+            const remoteAudio = document.getElementById('remote-audio');
+            
+            if (isVideoCallMode) {
+                remoteVideo.srcObject = remoteStream;
+                document.getElementById('screen-placeholder').style.display = 'none';
+            } else {
+                remoteAudio.srcObject = remoteStream;
+                document.getElementById('screen-placeholder').innerText = "Audio Call Active (Camera Off)";
+            }
+            document.getElementById('status-text').innerText = "Status: Connected Successfully!";
+        });
+
+        call.on('close', () => {
+            window.location.reload();
+        });
+    }
+
+    function updateButtonVisibility() {
+        const videoOnlyButtons = document.querySelectorAll('.video-only');
+        const modeBtn = document.getElementById('mode-switch-btn');
+
+        if (isVideoCallMode) {
+            videoOnlyButtons.forEach(btn => btn.classList.remove('hidden-by-mode'));
+            modeBtn.innerText = "🎧";
+            modeBtn.title = "Switch to Audio Call";
+        } else {
+            videoOnlyButtons.forEach(btn => btn.classList.add('hidden-by-mode'));
+            modeBtn.innerText = "📹";
+            modeBtn.title = "Switch to Video Call";
+            if (isCameraActive) {
+                toggleCamera();
+            }
+        }
+    }
+
+    async function toggleCamera() {
+        const camBtn = document.getElementById('cam-toggle-btn');
+        const pipBox = document.getElementById('local-pip-box');
+        const localVideo = document.getElementById('local-video');
+        const placeholder = document.getElementById('screen-placeholder');
+
+        if (!isCameraActive) {
+            if (localStream && localStream.getVideoTracks().length > 0) {
+                localStream.getVideoTracks()[0].enabled = true;
+                localVideo.srcObject = localStream;
+                pipBox.style.display = 'block';
+                isCameraActive = true;
+                camBtn.classList.add('active');
+                if (isVideoCallMode) placeholder.style.display = 'none';
+            }
+        } else {
+            if (localStream && localStream.getVideoTracks().length > 0) {
+                localStream.getVideoTracks()[0].enabled = false;
+            }
+            localVideo.srcObject = null;
+            pipBox.style.display = 'none';
+            isCameraActive = false;
+            camBtn.classList.remove('active');
+            if (isVideoCallMode && !document.getElementById('remote-video').srcObject) {
+                placeholder.style.display = 'block';
+            }
+        }
+    }
+
+    function toggleMic() {
+        const micBtn = document.getElementById('mic-toggle-btn');
+        if (!localStream) return;
+
+        isMicMuted = !isMicMuted;
+        localStream.getAudioTracks().forEach(track => {
+            track.enabled = !isMicMuted;
+        });
+
+        if (isMicMuted) {
+            micBtn.classList.add('active');
+            micBtn.innerText = "🔇";
+        } else {
+            micBtn.classList.remove('active');
+            micBtn.innerText = "🎤";
+        }
+    }
+
+    async function switchCamera() {
+        if (!isCameraActive) return;
+        usingFrontCamera = !usingFrontCamera;
+
+        const videoTracks = localStream.getVideoTracks();
+        videoTracks.forEach(t => t.stop());
+
+        try {
+            const newStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, 
+                audio: true 
+            });
+            
+            const oldAudioTrack = localStream.getAudioTracks()[0];
+            if (oldAudioTrack) {
+                newStream.getAudioTracks()[0].enabled = oldAudioTrack.enabled;
+            }
+            localStream = newStream;
+            document.getElementById('local-video').srcObject = localStream;
+            updateStreamInCall();
+        } catch (err) {
+            alert("Could not switch camera.");
+        }
+    }
+
+    function updateStreamInCall() {
+        if (!currentCall || !currentCall.peerConnection) return;
+        const videoTrack = localStream.getVideoTracks()[0];
+        const senders = currentCall.peerConnection.getSenders();
+        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+        if (videoSender) {
+            videoSender.replaceTrack(videoTrack);
+        }
+    }
+
+    function toggleRecord() {
+        const recBtn = document.getElementById('rec-btn');
+        const remoteVideo = document.getElementById('remote-video');
+
+        if (!isRecording) {
+            if (!remoteVideo.srcObject) return alert("No active video stream to record!");
+            recordedChunks = [];
+            try {
+                mediaRecorder = new MediaRecorder(remoteVideo.srcObject, { mimeType: 'video/webm' });
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'call-recording.webm';
+                    a.click();
+                };
+                mediaRecorder.start();
+                isRecording = true;
+                recBtn.style.background = 'var(--success)';
+                recBtn.innerText = "⏹️";
+            } catch (err) {
+                alert("Recording not supported on this browser.");
+            }
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            recBtn.style.background = '';
+            recBtn.innerText = "⏺️";
+        }
+    }
+
+    function capturePhoto() {
+        const remoteVideo = document.getElementById('remote-video');
+        if (!remoteVideo.srcObject) return alert("No video stream available to capture!");
+
+        const canvas = document.createElement('canvas');
+        canvas.width = remoteVideo.videoWidth || 640;
+        canvas.height = remoteVideo.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(remoteVideo, 0, 0, canvas.width, canvas.height);
+
+        const url = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'snapshot.png';
+        a.click();
+    }
+
+    function toggleCallType() {
+        isVideoCallMode = !isVideoCallMode;
+        updateButtonVisibility();
+        
+        if (isVideoCallMode) {
+            alert("Switched to Video Call mode.");
+        } else {
+            alert("Switched to Audio Call mode.");
+        }
+        if (currentCall) {
+            disconnectCall();
+        }
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('msg-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        if (dataConnection && dataConnection.open) {
+            dataConnection.send(text);
+            appendChatMessage("You", text);
+            input.value = '';
+        } else {
+            alert("Partner not connected for text messaging yet.");
+        }
+    }
+
+    function handleKeyPress(e) {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    }
+
+    function appendChatMessage(sender, text) {
+        const chatBox = document.getElementById('chat-box');
+        if (chatBox.children.length === 1 && chatBox.children[0].style.color) {
+            chatBox.innerHTML = '';
+        }
+        const msgDiv = document.createElement('div');
+        msgDiv.innerHTML = `<b>${sender}:</b> ${text}`;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function disconnectCall() {
+        if (currentCall) {
+            currentCall.close();
+        }
+        if (dataConnection) {
+            dataConnection.close();
+        }
+        window.location.reload();
+    }
+</script>
+</body>
+</html>
