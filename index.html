@@ -105,9 +105,18 @@
             transition: all 0.2s;
         }
 
+        /* পার্টনার ক্যামেরা সুইচ বাটনটির বর্ডার ও সাইজ বড় করার জন্য নির্দিষ্ট স্টাইল */
+        .ctrl-btn.partner-switch-btn {
+            width: 56px;
+            height: 42px;
+            border-radius: 22px;
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+
         .ctrl-btn:hover { transform: scale(1.08); background: rgba(51, 65, 85, 1); }
         .ctrl-btn.active { background: var(--danger); border-color: var(--danger); }
-        .ctrl-btn.disconnect-btn { background: var(--danger); width: 48px; height: 48px; }
+        .ctrl-btn.disconnect-btn { background: var(--danger); width: 48px; height: 48px; border-radius: 50%; }
         
         .power-on-screen {
             display: none;
@@ -181,7 +190,7 @@
         <div class="controls-bar" id="controls-bar">
             <button class="ctrl-btn" id="cam-toggle-btn" onclick="toggleCamera()" title="Camera On/Off">📷</button>
             <button class="ctrl-btn" onclick="switchCamera()" title="Switch Own Camera">🔄</button>
-            <button class="ctrl-btn" onclick="switchPartnerCamera()" title="Switch Partner Camera">🔄👥</button>
+            <button class="ctrl-btn partner-switch-btn" onclick="switchPartnerCamera()" title="Switch Partner Camera">🔄👥</button>
             <button class="ctrl-btn" id="rec-btn" onclick="toggleRecord()" title="Record Video">⏺️</button>
             <button class="ctrl-btn" onclick="capturePhoto()" title="Capture Photo">📸</button>
             <button class="ctrl-btn" id="mic-toggle-btn" onclick="toggleMic()" title="Mute/Unmute Voice">🎤</button>
