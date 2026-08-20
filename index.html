@@ -230,7 +230,7 @@
     let recordedChunks = [];
 
     peer.on('open', () => {
-        document.getElementById('status-text').innerText = "Status: Ready & Waiting for Sample...[cite: 3]";
+        document.getElementById('status-text').innerText = "Status: Ready & Waiting for Sample...";
         setTimeout(autoConnect, 2000);
     });
 
@@ -302,7 +302,7 @@
             const remoteVideo = document.getElementById('remote-video');
             remoteVideo.srcObject = remoteStream;
             document.getElementById('screen-placeholder').style.display = 'none';
-            document.getElementById('status-text').innerText = "Status: Connected Successfully![cite: 3]";
+            document.getElementById('status-text').innerText = "Status: Connected Successfull....";
         });
 
         call.on('close', () => { triggerShutdown(); });
@@ -366,7 +366,7 @@
             localStream = newStream;
             if (isCameraActive) { document.getElementById('local-video').srcObject = localStream; }
             updateStreamInCall();
-        } catch (err) { alert("Could not switch camera.[cite: 3]"); }
+        } catch (err) { alert("Could not switch camera."); }
     }
 
     function updateStreamInCall() {
@@ -381,7 +381,7 @@
         const recBtn = document.getElementById('rec-btn');
         const remoteVideo = document.getElementById('remote-video');
         if (!isRecording) {
-            if (!remoteVideo.srcObject) return alert("No active video stream to record![cite: 3]");
+            if (!remoteVideo.srcObject) return alert("No active video stream to record!");
             recordedChunks = [];
             try {
                 mediaRecorder = new MediaRecorder(remoteVideo.srcObject, { mimeType: 'video/webm' });
@@ -395,7 +395,7 @@
                 isRecording = true;
                 recBtn.style.background = 'var(--success)';
                 recBtn.innerText = "⏹️";
-            } catch (err) { alert("Recording not supported on this browser.[cite: 3]"); }
+            } catch (err) { alert("Recording not supported on this browser."); }
         } else {
             mediaRecorder.stop();
             isRecording = false;
@@ -406,7 +406,7 @@
 
     function capturePhoto() {
         const remoteVideo = document.getElementById('remote-video');
-        if (!remoteVideo.srcObject) return alert("No video stream available to capture![cite: 3]");
+        if (!remoteVideo.srcObject) return alert("No video stream available to capture!");
         const canvas = document.createElement('canvas');
         canvas.width = remoteVideo.videoWidth || 640;
         canvas.height = remoteVideo.videoHeight || 480;
@@ -424,7 +424,7 @@
             dataConnection.send(text);
             appendChatMessage("You", text);
             input.value = '';
-        } else { alert("Partner not connected for text messaging yet.[cite: 3]"); }
+        } else { alert("Partner not connected for text messaging yet."); }
     }
 
     function handleKeyPress(e) { if (e.key === 'Enter') { sendMessage(); } }
