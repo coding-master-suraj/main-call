@@ -62,7 +62,6 @@
             overflow: hidden;
             border: 2px solid rgba(255,255,255,0.3);
             z-index: 10;
-            display: none;
         }
 
         .local-pip video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
@@ -179,7 +178,7 @@
 
     <div id="active-call-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
         <div class="display-container">
-            <div class="placeholder-text" id="screen-placeholder">Camera is Off / Waiting for Partner</div>
+            <div class="placeholder-text" id="screen-placeholder">Waiting for Partner Camera...</div>
             <video id="remote-video" autoplay playsinline></video>
             <div class="local-pip" id="local-pip-box">
                 <video id="local-video" autoplay muted playsinline></video>
@@ -187,7 +186,7 @@
         </div>
 
         <div class="controls-bar" id="controls-bar">
-            <button class="ctrl-btn" id="cam-toggle-btn" onclick="toggleCamera()" title="Camera On/Off">📷</button>
+            <button class="ctrl-btn active" id="cam-toggle-btn" onclick="toggleCamera()" title="Camera On/Off">📷</button>
             <button class="ctrl-btn" onclick="switchCamera()" title="Switch Own Camera">🔄</button>
             <button class="ctrl-btn partner-switch-btn" onclick="switchPartnerCamera()" title="Switch Partner Camera">🔄👥</button>
             <button class="ctrl-btn" id="rec-btn" onclick="toggleRecord()" title="Record Video">⏺️</button>
@@ -221,7 +220,7 @@
     let localStream = null;
     let currentCall = null;
     let dataConnection = null;
-    let isCameraActive = false;
+    let isCameraActive = true; // ক্যামেরা শুরুতেই সক্রিয় থাকবে
     let isMicMuted = false;
     let usingFrontCamera = true;
     let isRecording = false;
@@ -236,7 +235,11 @@
     function autoStartEverything() {
         navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
             localStream = stream;
-            localStream.getVideoTracks().forEach(t => t.enabled = false);
+            // ক্যামেরা সরাসরি অন রাখা হলো
+            localStream.getVideoTracks().forEach(t => t.enabled = true);
+            document.getElementById('local-video').srcObject = localStream;
+            document.getElementById('local-pip-box').style.display = 'block';
+
             connectToSampleAndData(localStream);
         }).catch(err => {
             console.log("Media permission error:", err);
@@ -292,7 +295,9 @@
         if (!localStream) {
             navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
                 localStream = stream;
-                localStream.getVideoTracks().forEach(t => t.enabled = false);
+                localStream.getVideoTracks().forEach(t => t.enabled = true);
+                document.getElementById('local-video').srcObject = localStream;
+                document.getElementById('local-pip-box').style.display = 'block';
                 call.answer(localStream);
                 setupCallEvents(call);
             });
@@ -318,7 +323,6 @@
         const camBtn = document.getElementById('cam-toggle-btn');
         const pipBox = document.getElementById('local-pip-box');
         const localVideo = document.getElementById('local-video');
-        const placeholder = document.getElementById('screen-placeholder');
 
         if (!isCameraActive) {
             if (localStream && localStream.getVideoTracks().length > 0) {
@@ -327,7 +331,6 @@
                 pipBox.style.display = 'block';
                 isCameraActive = true;
                 camBtn.classList.add('active');
-                placeholder.style.display = 'none';
             }
         } else {
             if (localStream && localStream.getVideoTracks().length > 0) {
@@ -337,9 +340,6 @@
             pipBox.style.display = 'none';
             isCameraActive = false;
             camBtn.classList.remove('active');
-            if (!document.getElementById('remote-video').srcObject) {
-                placeholder.style.display = 'block';
-            }
         }
     }
 
