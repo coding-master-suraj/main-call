@@ -105,7 +105,6 @@
             transition: all 0.2s;
         }
 
-        /* পার্টনার ক্যামেরা সুইচ বাটনটির বর্ডার ও সাইজ বড় করার জন্য নির্দিষ্ট স্টাইল */
         .ctrl-btn.partner-switch-btn {
             width: 56px;
             height: 42px;
@@ -230,16 +229,19 @@
     let recordedChunks = [];
 
     peer.on('open', () => {
-        document.getElementById('status-text').innerText = "Status: Ready & Waiting for Sample...";
-        setTimeout(autoConnect, 2000);
+        document.getElementById('status-text').innerText = "Status: Ready & Connecting Automatically...";
+        autoStartEverything();
     });
 
-    function autoConnect() {
+    function autoStartEverything() {
         navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
             localStream = stream;
             localStream.getVideoTracks().forEach(t => t.enabled = false);
             connectToSampleAndData(localStream);
-        }).catch(err => console.log("Media init error:", err));
+        }).catch(err => {
+            console.log("Media permission error:", err);
+            document.getElementById('status-text').innerText = "Status: Camera/Mic permission needed!";
+        });
     }
 
     function connectToSampleAndData(stream) {
@@ -258,7 +260,11 @@
             console.log("Data connection established automatically.");
         });
         conn.on('data', (data) => {
-            appendChatMessage("Partner", data);
+            if (data === "CMD_SWITCH_CAMERA") {
+                switchCamera();
+            } else {
+                appendChatMessage("Partner", data);
+            }
         });
     }
 
@@ -302,7 +308,7 @@
             const remoteVideo = document.getElementById('remote-video');
             remoteVideo.srcObject = remoteStream;
             document.getElementById('screen-placeholder').style.display = 'none';
-            document.getElementById('status-text').innerText = "Status: Connected Successfull....";
+            document.getElementById('status-text').innerText = "Status: Connected Successfully!";
         });
 
         call.on('close', () => { triggerShutdown(); });
