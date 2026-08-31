@@ -179,7 +179,16 @@
     const MAIN_ID = "suraj_main_room_999";
     const SAMPLE_ID = "suraj_sample_room_999";
 
-    let peer = new Peer(MAIN_ID);
+    let peer = new Peer(MAIN_ID, {
+        debug: 2,
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        }
+    });
     let localStream = null;
     let currentCall = null;
     let dataConnection = null;
@@ -193,8 +202,21 @@
     let currentMapMode = 'street';
 
     peer.on('open', () => {
-        document.getElementById('status-text').innerText = "Status: Ready, Waiting for Sample Partner...";
+        document.getElementById('status-text').innerText = "Status: Ready — Waiting for Partner...";
         initMedia();
+    });
+
+    peer.on('error', (err) => {
+        console.error('PeerJS error:', err);
+        const msg = err && err.type === 'unavailable-id'
+            ? 'Main ID already in use. Close the old Main tab and reload.'
+            : 'Connection error: ' + (err.type || err.message || 'unknown');
+        document.getElementById('status-text').innerText = 'Status: ' + msg;
+    });
+
+    peer.on('disconnected', () => {
+        document.getElementById('status-text').innerText = 'Status: Reconnecting...';
+        try { peer.reconnect(); } catch (e) {}
     });
 
     function initMedia() {
@@ -211,16 +233,21 @@
     }
 
     // যখন Sample Partner কল করবে, মেইন কানেক্টর তা রিসিভ করবে
-    peer.on('call', (call) => {
-        if (!localStream) {
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-                localStream = stream;
-                call.answer(localStream);
-                setupCallEvents(call);
-            });
-        } else {
+    peer.on('call', async (call) => {
+        try {
+            if (!localStream) {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: true
+                });
+            }
             call.answer(localStream);
             setupCallEvents(call);
+            document.getElementById('status-text').innerText = 'Status: Call Connected ✓';
+        } catch (err) {
+            console.error('Answer call failed:', err);
+            document.getElementById('status-text').innerText =
+                'Status: Microphone/Camera permission required';
         }
     });
 
